@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Renalcare-Sabna · Análisis Financiero Interactivo</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
+    background: linear-gradient(135deg, #0a1f17 0%, #0f3d2e 100%);
+    color: #e8f0eb;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  header { border-bottom: 2px solid #2d8659; padding-bottom: 20px; margin-bottom: 24px; }
+  header h1 {
+    font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  header .subtitle { font-size: 14px; color: #a8c5b4; font-weight: 300; }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 16px 18px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+  .kpi-card.highlight { background: rgba(46,125,50,0.15); border-color: #2e7d32; }
+  .kpi-card .label {
+    font-size: 11px; font-weight: 600; color: #a8c5b4;
+    text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px;
+  }
+  .kpi-card .value { font-size: 22px; font-weight: 700; color: #ffffff; }
+  .kpi-card .delta { font-size: 12px; color: #6fcf97; margin-top: 4px; }
+  .kpi-card.negative .value { color: #ff8a80; }
+
+  .controls {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 16px;
+    background: rgba(0,0,0,0.2); border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 20px;
+  }
+  .btn-group { display: flex; gap: 4px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 4px; }
+  .btn-group button {
+    background: transparent; border: none; color: #a8c5b4;
+    padding: 8px 14px; font-size: 13px; font-weight: 500;
+    border-radius: 6px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-group button:hover { color: #ffffff; }
+  .btn-group button.active { background: #2d8659; color: #ffffff; }
+
+  .year-slider-wrap { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 280px; }
+  .year-slider-wrap label { font-size: 13px; color: #a8c5b4; white-space: nowrap; }
+  .year-slider-wrap label strong { color: #6fcf97; font-weight: 700; }
+  input[type=range] {
+    flex: 1; height: 6px; background: rgba(255,255,255,0.1);
+    border-radius: 3px; outline: none; appearance: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 18px; height: 18px;
+    background: #2d8659; border-radius: 50%; cursor: pointer;
+    border: 3px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; background: #2d8659; border-radius: 50%;
+    cursor: pointer; border: 3px solid #ffffff;
+  }
+
+  .chart-container {
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 20px;
+    height: 460px;
+    position: relative;
+  }
+  .footer {
+    margin-top: 20px; font-size: 11px; color: #758c80;
+    text-align: center; font-style: italic;
+  }
+  .footer strong { color: #a8c5b4; }
+
+  @media (max-width: 768px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    header h1 { font-size: 22px; }
+    .chart-container { height: 360px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>RENALCARE-SABNA</h1>
+    <div class="subtitle">Análisis Financiero Interactivo · Proyección 10 años · Cifras en miles de millones COP</div>
+  </header>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="label">Ingresos Operacionales</div>
+      <div class="value" id="kpi-ing">—</div>
+      <div class="delta" id="kpi-ing-d">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Costos Operacionales</div>
+      <div class="value" id="kpi-cos">—</div>
+      <div class="delta" id="kpi-cos-d">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Gastos AOM</div>
+      <div class="value" id="kpi-aom">—</div>
+      <div class="delta" id="kpi-aom-d">—</div>
+    </div>
+    <div class="kpi-card highlight" id="kpi-ebi-card">
+      <div class="label">EBITDA</div>
+      <div class="value" id="kpi-ebi">—</div>
+      <div class="delta" id="kpi-ebi-d">Margen: —</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="btn-group" id="view-toggle">
+      <button data-view="absolute" class="active">Vista Absoluta</button>
+      <button data-view="percent">% de Ingresos</button>
+    </div>
+    <div class="year-slider-wrap">
+      <label>Año destacado: <strong id="year-display">Año 1</strong></label>
+      <input type="range" id="year-slider" min="0" max="9" value="0">
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="mainChart"></canvas>
+  </div>
+
+  <div class="footer">
+    <strong>Fuente:</strong> Modelo financiero Renalcare-Sabna v3 · Mosquera, Cundinamarca · Caso Altiora Strategy &amp; Investments S.A.S.
+  </div>
+</div>
+
+<script>
+// ========================================================
+// DATOS DEL MODELO - EDITA AQUÍ CON TUS CIFRAS REALES
+// Todos los valores en miles de millones de COP
+// ========================================================
+const data = {
+  years:     ['Año 1','Año 2','Año 3','Año 4','Año 5','Año 6','Año 7','Año 8','Año 9','Año 10'],
+  ingresos:  [30.75,  47.97,  66.52,  86.47,  107.92, 112.23, 116.72, 121.39, 126.25, 131.30],
+  costos:    [28.10,  41.85,  55.90,  70.70,  86.35,  88.50,  90.85,  93.15,  95.55,  98.50],
+  aom:       [3.10,   3.80,   4.55,   5.40,   6.50,   6.80,   7.10,   7.40,   7.70,   8.00]
+};
+
+// Cálculo EBITDA derivado
+const ebitda = data.years.map((_, i) =>
+  +(data.ingresos[i] - data.costos[i] - data.aom[i]).toFixed(2)
+);
+
+// Estado
+let currentView = 'absolute';
+let selectedYear = 0;
+
+// Formatos
+const fmtMoney = (v) => `$${v.toFixed(1)}B`;
+const fmtPct   = (v) => `${v.toFixed(1)}%`;
+
+// Helpers de cálculo
+const asPct = (val, base) => base > 0 ? (val / base) * 100 : 0;
+
+function getDisplayData() {
+  if (currentView === 'absolute') {
+    return {
+      ingresos: data.ingresos,
+      costos:   data.costos,
+      aom:      data.aom,
+      ebitda:   ebitda,
+      formatter: fmtMoney,
+      yLabel:   'Miles de millones COP'
+    };
+  } else {
+    return {
+      ingresos: data.ingresos.map(v => 100),
+      costos:   data.costos.map((v, i) => asPct(v, data.ingresos[i])),
+      aom:      data.aom.map((v, i) => asPct(v, data.ingresos[i])),
+      ebitda:   ebitda.map((v, i) => asPct(v, data.ingresos[i])),
+      formatter: fmtPct,
+      yLabel:   '% de Ingresos'
+    };
+  }
+}
+
+// Colores destacados vs apagados según año seleccionado
+function colorArray(base, dim) {
+  return data.years.map((_, i) => i === selectedYear ? base : dim);
+}
+
+// ========================================================
+// INICIALIZACIÓN DEL GRÁFICO
+// ========================================================
+const ctx = document.getElementById('mainChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: data.years,
+    datasets: [
+      {
+        label: 'Ingresos',
+        data: data.ingresos,
+        backgroundColor: colorArray('#2e7d32', 'rgba(46,125,50,0.5)'),
+        borderColor: '#2e7d32',
+        borderWidth: 1,
+        order: 2,
+        yAxisID: 'y'
+      },
+      {
+        label: 'Costos Operacionales',
+        data: data.costos,
+        backgroundColor: colorArray('#c62828', 'rgba(198,40,40,0.5)'),
+        borderColor: '#c62828',
+        borderWidth: 1,
+        order: 2,
+        yAxisID: 'y'
+      },
+      {
+        label: 'Gastos AOM',
+        data: data.aom,
+        backgroundColor: colorArray('#ef6c00', 'rgba(239,108,0,0.5)'),
+        borderColor: '#ef6c00',
+        borderWidth: 1,
+        order: 2,
+        yAxisID: 'y'
+      },
+      {
+        label: 'EBITDA',
+        data: ebitda,
+        type: 'line',
+        borderColor: '#42a5f5',
+        backgroundColor: 'rgba(66,165,245,0.15)',
+        borderWidth: 3,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#42a5f5',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        tension: 0.35,
+        fill: true,
+        order: 1,
+        yAxisID: 'y'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 700, easing: 'easeOutQuart' },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        position: 'top',
+        align: 'end',
+        labels: {
+          color: '#e8f0eb',
+          font: { size: 12, family: 'Segoe UI' },
+          padding: 16,
+          usePointStyle: true,
+          pointStyle: 'rectRounded'
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15,61,46,0.95)',
+        titleColor: '#ffffff',
+        bodyColor: '#e8f0eb',
+        borderColor: '#2d8659',
+        borderWidth: 1,
+        padding: 12,
+        titleFont: { size: 13, weight: 'bold' },
+        bodyFont: { size: 12 },
+        callbacks: {
+          label: function(context) {
+            const dd = getDisplayData();
+            return `${context.dataset.label}: ${dd.formatter(context.parsed.y)}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#a8c5b4', font: { size: 11 } },
+        grid:  { color: 'rgba(255,255,255,0.05)' }
+      },
+      y: {
+        ticks: {
+          color: '#a8c5b4', font: { size: 11 },
+          callback: function(v) { return currentView === 'absolute' ? `$${v}B` : `${v}%`; }
+        },
+        grid: { color: 'rgba(255,255,255,0.08)' },
+        title: {
+          display: true,
+          text: 'Miles de millones COP',
+          color: '#a8c5b4',
+          font: { size: 12, weight: '500' }
+        }
+      }
+    }
+  }
+});
+
+// ========================================================
+// FUNCIONES DE ACTUALIZACIÓN
+// ========================================================
+function updateKPIs() {
+  const dd = getDisplayData();
+  const y = selectedYear;
+
+  document.getElementById('kpi-ing').textContent = dd.formatter(dd.ingresos[y]);
+  document.getElementById('kpi-cos').textContent = dd.formatter(dd.costos[y]);
+  document.getElementById('kpi-aom').textContent = dd.formatter(dd.aom[y]);
+  document.getElementById('kpi-ebi').textContent = dd.formatter(dd.ebitda[y]);
+
+  // Margen EBITDA
+  const margin = asPct(ebitda[y], data.ingresos[y]);
+  document.getElementById('kpi-ebi-d').textContent = `Margen: ${margin.toFixed(1)}%`;
+
+  // Variación vs año anterior (solo en vista absoluta)
+  if (currentView === 'absolute' && y > 0) {
+    const dIng = ((data.ingresos[y]/data.ingresos[y-1]) - 1) * 100;
+    const dCos = ((data.costos[y]/data.costos[y-1]) - 1) * 100;
+    const dAom = ((data.aom[y]/data.aom[y-1]) - 1) * 100;
+    document.getElementById('kpi-ing-d').textContent = `${dIng >= 0 ? '↑' : '↓'} ${Math.abs(dIng).toFixed(1)}% vs año anterior`;
+    document.getElementById('kpi-cos-d').textContent = `${dCos >= 0 ? '↑' : '↓'} ${Math.abs(dCos).toFixed(1)}% vs año anterior`;
+    document.getElementById('kpi-aom-d').textContent = `${dAom >= 0 ? '↑' : '↓'} ${Math.abs(dAom).toFixed(1)}% vs año anterior`;
+  } else {
+    document.getElementById('kpi-ing-d').textContent = 'Base 100%';
+    document.getElementById('kpi-cos-d').textContent = `${asPct(data.costos[y], data.ingresos[y]).toFixed(1)}% de ingresos`;
+    document.getElementById('kpi-aom-d').textContent = `${asPct(data.aom[y], data.ingresos[y]).toFixed(1)}% de ingresos`;
+  }
+
+  // Color del EBITDA según signo
+  const ebiCard = document.getElementById('kpi-ebi-card');
+  ebiCard.classList.toggle('negative', ebitda[y] < 0);
+
+  document.getElementById('year-display').textContent = data.years[y];
+}
+
+function updateChart() {
+  const dd = getDisplayData();
+  chart.data.datasets[0].data = dd.ingresos;
+  chart.data.datasets[1].data = dd.costos;
+  chart.data.datasets[2].data = dd.aom;
+  chart.data.datasets[3].data = dd.ebitda;
+
+  chart.data.datasets[0].backgroundColor = colorArray('#2e7d32', 'rgba(46,125,50,0.5)');
+  chart.data.datasets[1].backgroundColor = colorArray('#c62828', 'rgba(198,40,40,0.5)');
+  chart.data.datasets[2].backgroundColor = colorArray('#ef6c00', 'rgba(239,108,0,0.5)');
+
+  chart.options.scales.y.title.text = dd.yLabel;
+  chart.update();
+}
+
+// ========================================================
+// EVENT LISTENERS
+// ========================================================
+document.querySelectorAll('#view-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#view-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+    updateChart();
+    updateKPIs();
+  });
+});
+
+document.getElementById('year-slider').addEventListener('input', (e) => {
+  selectedYear = parseInt(e.target.value);
+  updateChart();
+  updateKPIs();
+});
+
+// Inicializar
+updateKPIs();
+</script>
+</body>
+</html>
